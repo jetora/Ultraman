@@ -1,0 +1,320 @@
+{% extends "basis.html" %}
+{% block content %}
+    <div class="panel-heading">查询条件</div>
+    <br/>
+    <!--
+    <div class="col-md-3 form-group">
+        <input type="text" class="form-control" placeholder="id" id="search_article_id">
+    </div>
+    -->
+    <div class="col-md-6 form-group">
+        <input type="text" class="form-control" placeholder="project_name/master_ip" id="search_condition">
+    </div>
+    <div class="btn-group col-md-6">
+        <button class="btn btn-info" onclick="searchProject()">
+            <i class="icon-search" aria-hidden="true"></i> 查询
+        </button>
+        <button class="btn btn-info" onclick="resetProject()">
+            <i class="icon-search" aria-hidden="true"></i> 重置
+        </button>
+    </div>
+    <br/>
+    <br/>
+    <br/>
+    <div id="toolbar" class="btn-group col-md-6">
+        <button id="btn_add" type="button" class="btn btn-primary" onclick="addProject()">
+            <i class="icon-plus" aria-hidden="true"></i> 新增
+        </button>
+        <button id="btn_upd" type="button" class="btn btn-warning" onclick="updProjectbatch()">
+            <i class="icon-plus" aria-hidden="true"></i> 批量修改
+        </button>
+        <button id="btn_del" type="button" class="btn btn-danger" onclick="delProjectbatch()">
+            <i class="icon-plus" aria-hidden="true"></i> 批量删除
+        </button>
+    </div>
+    <br/>
+    <br/>
+    <!--table start-->
+    <table id="project_table" class="display table  table-hover" data-toggle="table"
+           data-url="{% url 'show_project_in_table' %}"
+           data-method="get"
+           data-pagination="true"
+           data-side-pagination="server"
+           data-page-list="[5,10, 20, 50]"
+           data-mobile-responsive="true"
+           data-show-refresh="true" data-show-columns="true"
+           data-show-toggle="true" data-page-size=5 data-unique-id="asset_id"
+           data-query-params="paginationParam"
+           data-striped="true" data-row-style="rowStyle">
+        <thead>
+        <tr>
+            <th data-field="asset_state" data-checkbox="true"></th>
+            <th data-field="operation" data-formatter="optFormatter" data-events="optEvents">操作</th>
+            <!--<th data-field="asset_id" data-align="center" data-sortable="true">id</th>-->
+            <th data-field="asset_project_name" data-sortable="true">项目名称</th>
+            <th data-field="asset_master_ip" data-sortable="true">主库</th>
+            <!--<th data-field="asset_published" data-align="center" data-sortable="true"
+                data-formatter="statsFormatter">published
+            </th>-->
+            <th data-field="asset_dba" data-align="center" data-sortable="true">dba</th>
+            <th data-field="asset_department" data-sortable="true">研发一级部门</th>
+            <th data-field="asset_problem_info" data-sortable="true">问题描述</th>
+            <th data-field="asset_remark" data-sortable="true">备注</th>
+        </tr>
+        </thead>
+    </table>
+    <!--table end-->
+    <!-- add modal start-->
+    <div class="modal fade bs-example-modal-lg" id="projectModal" tabindex="-1" role="dialog"
+         aria-hidden="true" data-backdrop="static" style="display: none">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal"
+                            aria-hidden="true">&times;</button>
+                    <h4 class="modal-title" id="modalTitle">新增</h4>
+                </div>
+                <div class="modal-body" id="project_content">
+                    <form class="form-horizontal" id="projectForm">
+                        <div class="form-group">
+                            <label class="control-label col-md-3" for="project_name">项目名称</label>
+                            <div class="col-md-8 col-xs-11">
+                                <input type="text" min="0" id="project_name" class="form-control" required>
+
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="control-label col-md-3" for="master_ip">主库IP</label>
+                            <div class="col-md-8 col-xs-11">
+                                <input type="text" id="master_ip" class="form-control" required>
+
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="control-label col-md-3" for="dba">DBA</label>
+                            <div class="col-md-8 col-xs-11">
+                                <input type="text" id="dba" class="form-control" required>
+
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="control-label col-md-3" for="department">研发一级部门</label>
+                            <div class="col-md-8 col-xs-11">
+                                <input type="text" id="department" class="form-control" required>
+
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label class="control-label col-md-3" for="remark">备注</label>
+                            <div class="col-md-8 col-xs-11">
+                                <input type="text" id="remark" class="form-control" required>
+
+                            </div>
+                        </div>
+                        <input type="hidden" id="id">
+                        <input type="hidden" id="opt_type">
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" onclick="optProject()">
+                        <i class="icon-ok" aria-hidden="true"></i> 提交
+                    </button>
+                    <button type="button" class="btn btn-default" data-dismiss="modal">
+                        <i class="icon-remove" aria-hidden="true"></i> 关闭
+                    </button>
+                </div>
+            </div><!-- /.modal-content -->
+        </div><!-- /.modal-dialog -->
+    </div><!-- /.modal -->
+{% endblock content %}
+
+
+{% block js %}
+    <script>
+        // 初始化页面加载表格数据
+        $(function () {
+            $('#search_condition').val("")
+            $('#search_condition').bind('keyup', function (event) {
+                if (event.keyCode == "13") {
+                    //回车执行查询
+                    searchProject();
+                }
+            });
+            $('#project_table').bootstrapTable();
+        });
+        function resetProject() {
+            $('#search_condition').val("")
+            searchProject()
+        }
+        // 修改，删除按钮
+        function optFormatter(value, row) {
+            var ret_butns = [];
+            var edit_permit = row.editPermit;
+            var remove_permit = row.removePermit;
+            ret_butns.push('<a class="edit" href="javascript:void(0)" title="edit"><i class="fa fa-edit"></i></a> ');
+            ret_butns.push('<a class="remove" href="javascript:void(0)" title="delete"><i class="fa fa-trash-o"></i></a> ');
+            if (ret_butns.length > 0) {
+                return ret_butns.join('');
+            } else {
+                return '<span class="label label-info">无权限</span>';
+            }
+        }
+        // 点击查询按钮
+        function searchProject() {
+            $('#project_table').bootstrapTable('refreshOptions', {pageNumber: 1, offset: 0});
+//        $('#project_table').bootstrapTable('refresh');
+        }
+        // 表格数据查询参数
+        function paginationParam(params) {
+            // 获取查询过滤条件
+            params.search_condition = $("#search_condition").val();
+            return params;
+        }
+        // 点击修改，删除按钮
+        window.optEvents = {
+            'click .edit': function (e, value, row) {
+                editProject(row);
+            },
+            'click .remove': function (e, value, row) {
+                //var message = "确定要删除项目：" + row.asset_title + "?";
+                //var r = confirm(message);
+                //if (r == true) {
+                //    delete_project(row.asset_id, row.asset_title);
+                //}
+                swal({
+                        title: row.asset_title + " Will be deleted, Are you sure?",
+                        text: "You will not be able to recover this imaginary file!",
+                        type: "warning",
+                        showCancelButton: true,
+                        confirmButtonClass: "btn-danger",
+                        confirmButtonText: "Yes, delete it!",
+                        cancelButtonText: "No, cancel plx!",
+                        closeOnConfirm: false,
+                        closeOnCancel: false
+                    },
+                    function (isConfirm) {
+                        if (isConfirm) {
+                            delete_project(row.asset_id, row.asset_title);
+                        } else {
+                            swal("Cancelled", "Your imaginary file is safe :)", "error");
+                        }
+                    });
+            }
+        };
+        // 添加项目
+        function addProject() {
+            // 设置标题
+            $("#modalTitle").text("新增项目");
+            var projectModal = $('#projectModal');
+            // 初始化form表单内容
+            projectModal.find('.modal-body #opt_type').val("add");
+            projectModal.find('.modal-body #id').val("");
+            projectModal.find('.modal-body #project_name').val("");
+            projectModal.find('.modal-body #master_ip').val("");
+            projectModal.find('.modal-body #dba').val("");
+            projectModal.find('.modal-body #department').val("");
+            projectModal.find('.modal-body #remark').val("");
+            projectModal.modal("show");
+        }
+        function editProject(row) {
+            $('#modalTitle').text('修改项目');
+            var projectModal = $('#projectModal');
+            projectModal.find('.modal-body #opt_type').val("edit");
+            projectModal.find('.modal-body #id').val(row.asset_id);
+            projectModal.find('.modal-body #project_name').val(row.asset_project_name);
+            projectModal.find('.modal-body #master_ip').val(row.asset_master_ip);
+            projectModal.find('.modal-body #dba').val(row.asset_dba);
+            projectModal.find('.modal-body #department').val(row.asset_department);
+            projectModal.find('.modal-body #remark').val(row.asset_remark);
+            projectModal.modal('show');
+        }
+        // 新增或编辑form表单内容
+        function get_form_data() {
+            var data = {};
+            var projectModal = $('#projectModal');
+            // 获取表单内容
+            data.opt_type = projectModal.find('.modal-body #opt_type').val();
+            data.id = projectModal.find('.modal-body #id').val();
+            data.project_name = projectModal.find('.modal-body #project_name').val();
+            data.master_ip = projectModal.find('.modal-body #master_ip').val();
+            data.dba = projectModal.find('.modal-body #dba').val();
+            data.department = projectModal.find('.modal-body #department').val();
+            data.remark = projectModal.find('.modal-body #remark').val();
+            if ("edit" == data.opt_type) {
+                data.change_flag = true;
+            } else {
+                data.change_flag = false;
+            }
+            return data;
+        }
+        // 新增或编辑项目
+        function optProject() {
+            // 获取数据
+            var data = get_form_data();
+            var change_flag = data.change_flag;
+            if (change_flag) {
+                opt_project(data);
+            } else {
+                opt_project(data);
+            }
+        }
+        function opt_project(data) {
+            $.ajaxSetup({
+                data: {csrfmiddlewaretoken: '{{ csrf_token }}'}
+            });
+            // ajax新增项目数据
+            $.ajax({
+                url: "{% url 'ajax_opt_project' %}",
+                type: 'post',
+                dataType: 'json',
+                data: data,
+                success: function (ret) {
+                    // 新增成功
+                    if (ret.code == 1) {
+                        // 隐藏modal框
+                        $('#projectModal').modal('hide');
+                        $('#project_table').bootstrapTable('refresh');
+                        //alert(ret.message);
+                        swal(ret.message, "You clicked the button!", "success");
+                        resetProject()
+                    } else {
+                        //alert(ret.message);
+                        swal(ret.message, "You clicked the button!", "success")
+                    }
+                }
+            })
+        }
+        // 根据id删除项目
+        function delete_project(id, name) {
+            $.ajaxSetup({
+                data: {csrfmiddlewaretoken: '{{ csrf_token }}'}
+            });
+            // 获取数据
+            var data = {};
+            data.id = id;
+            // ajax新增项目数据
+            $.ajax({
+                url: "{% url 'ajax_del_project' %}",
+                type: 'post',
+                dataType: 'json',
+                data: data,
+                success: function (ret) {
+                    if ("-1" == ret.code) {
+                        //alert(d.message);
+                        swal("Delete Failed!")
+                        //window.location.href = './Cluster?content=' + name;
+                        window.location.href = '{% url 'project' %}'
+                    } else {
+                        $('#project_table').bootstrapTable('refresh');
+                        //alert(d.message);
+                        swal("Deleted!", "Your imaginary file has been deleted.", "success");
+                    }
+                }
+            })
+        }
+        function delProjectbatch() {
+        var $table = $('#project_table')
+        alert('getSelections: ' + JSON.stringify($table.bootstrapTable('getSelections')));
+    }
+    </script>
+{% endblock js %}
